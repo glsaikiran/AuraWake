@@ -54,8 +54,10 @@ Contributions are welcome! If you'd like to improve the UI or add new features:
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
-
+This software is open for use and modification. However, proper credit must be given to the original developer, glsaikiran, in all distributions or
+substantial portions of the software.
+Copyright (c) 2026 glsaikiran
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files to use, copy, modify, and merge, subject to the condition that credit is clearly attributed to glsaikiran                  
 ---
 **Developed by [sai](https://github.com/glsaikiran)**
 
