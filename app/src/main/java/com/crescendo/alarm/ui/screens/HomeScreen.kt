@@ -42,7 +42,7 @@ fun HomeScreen(
 ) {
     val alarms  by viewModel.alarms.collectAsState()
     val sleep   by viewModel.sleepSchedule.collectAsState()
-    var tab     by remember { mutableStateOf(0) }
+    var tab     by remember { mutableIntStateOf(0) }
 
     Scaffold(containerColor = BgDark, floatingActionButton = {
         if (tab == 0) FloatingActionButton(onClick = onAddAlarm,
@@ -56,7 +56,7 @@ fun HomeScreen(
             // Tab bar
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFF111122)).padding(4.dp)) {
-                listOf("⏰  Alarms", "🌙  Sleep").forEachIndexed { idx, title ->
+                listOf("⏰  Alarms", "🌙  Sleep", "ℹ️  Info").forEachIndexed { idx, title ->
                     val sel = tab == idx
                     Box(Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                         .background(if (sel) Color(0x2663B3ED) else Color.Transparent)
@@ -74,6 +74,7 @@ fun HomeScreen(
             when (tab) {
                 0 -> AlarmsTab(alarms, viewModel, onEditAlarm)
                 1 -> SleepSummaryTab(sleep, onOpenSleep)
+                2 -> AboutTab()
             }
         }
     }
@@ -277,5 +278,64 @@ private fun SummaryChip(icon: String, label: String, value: String, color: Color
         Spacer(Modifier.height(6.dp))
         Text(label, color = TextMuted, fontSize = 11.sp)
         Text(value, color = color, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+// ── About Tab ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun AboutTab() {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF111122))
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("AuraWake", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("Crescendo Alarm", color = AccentBlue, fontSize = 14.sp)
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = Color(0x15FFFFFF))
+                Spacer(Modifier.height(16.dp))
+                Text("Developed by", color = TextMuted, fontSize = 12.sp)
+                Text("glsaikiran", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(8.dp))
+                Text("Version 1.0.0", color = TextMuted, fontSize = 12.sp)
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF111122))
+                    .padding(20.dp)
+            ) {
+                Text("Licensing & Terms", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "This software is open for use and modification. However, proper credit must " +
+                    "be given to the original developer, glsaikiran, in all distributions or " +
+                    "substantial portions of the software.\n\n" +
+                    "Copyright (c) 2026 glsaikiran\n\n" +
+                    "Permission is hereby granted, free of charge, to any person obtaining a copy " +
+                    "of this software and associated documentation files to use, copy, modify, and " +
+                    "merge, subject to the condition that credit is clearly attributed to glsaikiran.",
+                    color = TextMuted,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+
+        item {
+            Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                Text("Made with ❤️ for better mornings", color = TextMuted, fontSize = 11.sp)
+            }
+        }
     }
 }
