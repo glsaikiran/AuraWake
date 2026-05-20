@@ -51,6 +51,7 @@ class AlarmService : Service() {
         parseSounds(soundsJson, soundName)
 
         startForeground(NOTIF_ID, buildNotif(label))
+        sendBroadcast(Intent("com.crescendo.alarm.ALARM_STARTED").setPackage(packageName))
         playAlarmSequence(crescendo, rampMin, vibOn)
         return START_STICKY
     }
@@ -151,10 +152,16 @@ class AlarmService : Service() {
     }
 
     private fun stopAlarm() {
+        if (mediaPlayer == null && vibrator == null) return
         handler.removeCallbacksAndMessages(null)
         mediaPlayer?.apply { if (isPlaying) stop(); release() }
         mediaPlayer = null
         vibrator?.cancel()
+        vibrator = null
+        
+        // Trigger briefing broadcast
+        sendBroadcast(Intent("com.crescendo.alarm.ALARM_DISMISSED").setPackage(packageName))
+
         stopForeground(true)
         stopSelf()
     }

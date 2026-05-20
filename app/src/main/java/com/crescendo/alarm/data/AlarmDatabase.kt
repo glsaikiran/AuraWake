@@ -32,6 +32,7 @@ data class Alarm(
 @Entity(tableName = "sleep_schedule")
 data class SleepSchedule(
     @PrimaryKey val id: Int = 1,
+    val userName: String = "",
     val enabled: Boolean = true,
     // Bedtime
     val bedHour: Int = 22,
@@ -49,7 +50,9 @@ data class SleepSchedule(
     val wakeSound: String = "Helix",
     val wakeSoundsJson: String = "[]",
     val wakeHaptics: Boolean = true,
-    val wakeVolume: Int = 80               // 10-100
+    val wakeVolume: Int = 80,               // 10-100
+    val ttsPitch: Float = 1.0f,
+    val ttsRate: Float = 0.9f
 ) {
     /** Total sleep in minutes */
     fun sleepMinutes(): Int {
@@ -103,6 +106,15 @@ data class SleepSchedule(
 
 data class WakeSoundItem(val uri: String, val name: String, val duration: Int)
 
+@Entity(tableName = "tasks")
+data class Task(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val title: String,
+    val date: String, // format "yyyy-MM-dd"
+    val time: String, // format "HH:mm"
+    val completed: Boolean = false
+)
+
 // ── DAOs ───────────────────────────────────────────────────────────────────
 
 @Dao
@@ -135,12 +147,28 @@ interface SleepScheduleDao {
     suspend fun saveSchedule(schedule: SleepSchedule)
 }
 
+@Dao
+interface TaskDao {
+    @Query("SELECT * FROM tasks WHERE date = :date ORDER BY time ASC")
+    fun getTasksForDate(date: String): Flow<List<Task>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTask(task: Task): Long
+
+    @Update
+    suspend fun updateTask(task: Task)
+
+    @Delete
+    suspend fun deleteTask(task: Task)
+}
+
 // ── Database ───────────────────────────────────────────────────────────────
 
-@Database(entities = [Alarm::class, SleepSchedule::class], version = 3, exportSchema = false)
+@Database(entities = [Alarm::class, SleepSchedule::class, Task::class], version = 6, exportSchema = false)
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
     abstract fun sleepScheduleDao(): SleepScheduleDao
+    abstract fun taskDao(): TaskDao
 
     companion object {
         @Volatile private var INSTANCE: AlarmDatabase? = null

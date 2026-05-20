@@ -102,7 +102,6 @@ class SleepScheduler(private val ctx: Context) {
     }
 
     fun scheduleWakeWindow(s: SleepSchedule) {
-        if (s.wakeWindowMinutes == 0) return
         val intent = Intent(ctx, SleepReceiver::class.java).apply {
             action = SleepReceiver.ACTION_WAKE_WINDOW
             putExtra("wake_window_minutes", s.wakeWindowMinutes)

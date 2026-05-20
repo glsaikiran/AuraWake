@@ -15,3 +15,10 @@ class SleepScheduleRepository(private val dao: SleepScheduleDao) {
     val schedule: Flow<SleepSchedule?> = dao.getSchedule()
     suspend fun save(schedule: SleepSchedule) = dao.saveSchedule(schedule)
 }
+
+class TaskRepository(private val dao: TaskDao) {
+    fun getTasksForDate(date: String): Flow<List<Task>> = dao.getTasksForDate(date)
+    suspend fun insert(task: Task) = dao.insertTask(task)
+    suspend fun update(task: Task) = dao.updateTask(task)
+    suspend fun delete(task: Task) = dao.deleteTask(task)
+}

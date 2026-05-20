@@ -17,9 +17,8 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(vm: AlarmViewModel = viewModel()) {
     val nav = rememberNavController()
-    val vm: AlarmViewModel = viewModel()
 
     NavHost(nav, startDestination = Screen.Home.route) {
         composable(Screen.Home.route) {

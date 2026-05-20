@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.crescendo.alarm.data.Alarm
 import com.crescendo.alarm.data.SleepSchedule
+import com.crescendo.alarm.data.Task
 import com.crescendo.alarm.viewmodel.AlarmViewModel
 
 private val BgDark       = Color(0xFF0A0A1A)
@@ -42,7 +44,26 @@ fun HomeScreen(
 ) {
     val alarms  by viewModel.alarms.collectAsState()
     val sleep   by viewModel.sleepSchedule.collectAsState()
+    val ringing by viewModel.isRinging.collectAsState()
     var tab     by remember { mutableIntStateOf(0) }
+    var showNameDialog by remember { mutableStateOf(false) }
+
+    // Only show dialog if we have data and the name is blank
+    LaunchedEffect(sleep.userName) {
+        if (sleep.userName.isNotBlank()) {
+            showNameDialog = false
+        } else if (sleep.id != -1) { 
+            // We use id != -1 as a signal that the real data (or default row) is loaded
+            showNameDialog = true
+        }
+    }
+
+    if (showNameDialog) {
+        NameSetupDialog(onSave = {
+            viewModel.setUserName(it)
+            showNameDialog = false
+        })
+    }
 
     Scaffold(containerColor = BgDark, floatingActionButton = {
         if (tab == 0) FloatingActionButton(onClick = onAddAlarm,
@@ -53,10 +74,22 @@ fun HomeScreen(
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
             Spacer(Modifier.height(16.dp))
 
+            if (ringing) {
+                Button(
+                    onClick = { viewModel.stopRinging() },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("🔔 STOP ALARM", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
             // Tab bar
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFF111122)).padding(4.dp)) {
-                listOf("⏰  Alarms", "🌙  Sleep", "ℹ️  Info").forEachIndexed { idx, title ->
+                listOf("⏰ Alarms", "🌙 Sleep", "✅ Tasks", "ℹ️ Info").forEachIndexed { idx, title ->
                     val sel = tab == idx
                     Box(Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                         .background(if (sel) Color(0x2663B3ED) else Color.Transparent)
@@ -65,7 +98,7 @@ fun HomeScreen(
                         Text(title,
                             color = if (sel) AccentBlue else TextMuted,
                             fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
-                            fontSize = 14.sp)
+                            fontSize = 12.sp)
                     }
                 }
             }
@@ -74,7 +107,13 @@ fun HomeScreen(
             when (tab) {
                 0 -> AlarmsTab(alarms, viewModel, onEditAlarm)
                 1 -> SleepSummaryTab(sleep, onOpenSleep)
-                2 -> AboutTab()
+                2 -> TasksTab(viewModel)
+                3 -> AboutTab(
+                    sleep,
+                    onEditName = { viewModel.setUserName(it) },
+                    onUpdateVoice = { p, r -> viewModel.setVoiceSettings(p, r) },
+                    onPreview = { viewModel.previewVoice() }
+                )
             }
         }
     }
@@ -159,20 +198,6 @@ fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onClick: () -> Unit) {
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun CrescendoBarViz(barCount: Int = 20) {
-    Row(Modifier.fillMaxWidth().height(48.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.Bottom) {
-        repeat(barCount) { i ->
-            val pct = (i + 1f) / barCount
-            Box(Modifier.weight(1f).height((6 + pct * 42).dp)
-                .clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
-                .background(AccentBlue.copy(alpha = 0.2f + pct * 0.6f)))
         }
     }
 }
@@ -281,10 +306,207 @@ private fun SummaryChip(icon: String, label: String, value: String, color: Color
     }
 }
 
+// ── Tasks Tab ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun TasksTab(viewModel: AlarmViewModel) {
+    val tasks by viewModel.tasks.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+            Text("Today's Tasks", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            IconButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Default.Add, null, tint = AccentBlue)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+
+        if (tasks.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No tasks for today", color = TextMuted)
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(tasks) { task ->
+                    TaskItem(task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) })
+                }
+                item { Spacer(Modifier.height(80.dp)) }
+            }
+        }
+    }
+
+    if (showAddDialog) {
+        AddTaskDialog(onDismiss = { showAddDialog = false }) { title, time ->
+            viewModel.saveTask(Task(title = title, date = java.time.LocalDate.now().toString(), time = time))
+            showAddDialog = false
+        }
+    }
+}
+
+@Composable
+private fun TaskItem(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF111122))
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = task.completed,
+            onCheckedChange = { onToggle() },
+            colors = CheckboxDefaults.colors(checkedColor = AccentBlue, uncheckedColor = TextMuted)
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                task.title,
+                color = if (task.completed) TextMuted else Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(task.time, color = TextMuted, fontSize = 12.sp)
+        }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Default.Delete, null, tint = AccentRed.copy(0.7f), modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddTaskDialog(onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+    var title by remember { mutableStateOf("") }
+    var hour by remember { mutableIntStateOf(12) }
+    var minute by remember { mutableIntStateOf(0) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF111122),
+        title = { Text("New Task", color = Color.White) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                TextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    placeholder = { Text("What needs to be done?", color = TextMuted) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0x0AFFFFFF),
+                        unfocusedContainerColor = Color(0x0AFFFFFF),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Time:", color = TextMuted)
+                    // Simplified time selection
+                    NumberDrumSmall(hour, 0, 23) { hour = it }
+                    Text(":", color = Color.White)
+                    NumberDrumSmall(minute, 0, 59) { minute = it }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (title.isNotBlank()) onSave(title, "%02d:%02d".format(hour, minute)) }) {
+                Text("Save", color = AccentBlue)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = TextMuted) }
+        }
+    )
+}
+
+@Composable
+private fun NumberDrumSmall(value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "%02d".format(value),
+            color = Color.White,
+            modifier = Modifier
+                .clickable { onChange(if (value >= max) min else value + 1) }
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .background(Color(0x1AFFFFFF), RoundedCornerShape(4.dp))
+        )
+    }
+}
+
+@Composable
+private fun VoiceSlider(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    onChange: (Float) -> Unit,
+    onPreview: () -> Unit
+) {
+    Column {
+        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+            Text(label, color = Color.White, fontSize = 14.sp)
+            Text("%.1f".format(value), color = AccentBlue, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+        Slider(
+            value = value,
+            onValueChange = onChange,
+            onValueChangeFinished = onPreview,
+            valueRange = range,
+            colors = SliderDefaults.colors(
+                thumbColor = AccentBlue,
+                activeTrackColor = AccentBlue,
+                inactiveTrackColor = Color(0xFF334455)
+            )
+        )
+    }
+}
+
+@Composable
+private fun NameSetupDialog(onSave: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = { },
+        containerColor = Color(0xFF111122),
+        title = { Text("Welcome to AuraWake", color = Color.White) },
+        text = {
+            Column {
+                Text("What should I call you?", color = TextMuted)
+                Spacer(Modifier.height(12.dp))
+                TextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    placeholder = { Text("Enter your name", color = Color(0x40FFFFFF)) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0x0AFFFFFF),
+                        unfocusedContainerColor = Color(0x0AFFFFFF),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (name.isNotBlank()) onSave(name) }) {
+                Text("Let's Start", color = AccentBlue)
+            }
+        }
+    )
+}
+
 // ── About Tab ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun AboutTab() {
+private fun AboutTab(
+    sleep: SleepSchedule,
+    onEditName: (String) -> Unit,
+    onUpdateVoice: (Float, Float) -> Unit,
+    onPreview: () -> Unit
+) {
+    var showEditName by remember { mutableStateOf(false) }
+    val userName = sleep.userName
+
     LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Column(
@@ -300,10 +522,51 @@ private fun AboutTab() {
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider(color = Color(0x15FFFFFF))
                 Spacer(Modifier.height(16.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Good morning,", color = TextMuted, fontSize = 12.sp)
+                        Text(userName.ifBlank { "User" }, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(onClick = { showEditName = true }) {
+                        Text("✏️", fontSize = 14.sp)
+                    }
+                }
+                
+                Spacer(Modifier.height(16.dp))
                 Text("Developed by", color = TextMuted, fontSize = 12.sp)
                 Text("glsaikiran", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
                 Text("Version 1.0.0", color = TextMuted, fontSize = 12.sp)
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF111122))
+                    .padding(20.dp)
+            ) {
+                Text("Voice Settings", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("Adjust how your morning briefing sounds", color = TextMuted, fontSize = 12.sp)
+                Spacer(Modifier.height(20.dp))
+
+                VoiceSlider("Pitch", sleep.ttsPitch, 0.5f..1.5f, 
+                    onChange = { onUpdateVoice(it, sleep.ttsRate) },
+                    onPreview = onPreview
+                )
+                Spacer(Modifier.height(16.dp))
+                VoiceSlider("Speed", sleep.ttsRate, 0.5f..1.5f,
+                    onChange = { onUpdateVoice(sleep.ttsPitch, it) },
+                    onPreview = onPreview
+                )
+                
+                Spacer(Modifier.height(12.dp))
+                Text("Tip: Lower pitch sounds more masculine, higher pitch sounds more feminine.", 
+                    color = Color(0x8063B3ED), fontSize = 11.sp, lineHeight = 16.sp)
             }
         }
 
@@ -337,5 +600,31 @@ private fun AboutTab() {
                 Text("Made with ❤️ for better mornings", color = TextMuted, fontSize = 11.sp)
             }
         }
+    }
+
+    if (showEditName) {
+        var newName by remember { mutableStateOf(userName) }
+        AlertDialog(
+            onDismissRequest = { showEditName = false },
+            containerColor = Color(0xFF111122),
+            title = { Text("Edit Name", color = Color.White) },
+            text = {
+                TextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0x0AFFFFFF),
+                        unfocusedContainerColor = Color(0x0AFFFFFF),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onEditName(newName); showEditName = false }) {
+                    Text("Save", color = AccentBlue)
+                }
+            }
+        )
     }
 }

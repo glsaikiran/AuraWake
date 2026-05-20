@@ -53,6 +53,12 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".receiver.BriefingReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.crescendo.alarm.ALARM_DISMISSED" />
+            </intent-filter>
+        </receiver>
+
         <service android:name=".service.AlarmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />

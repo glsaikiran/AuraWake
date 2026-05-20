@@ -75,6 +75,7 @@ class WakeWindowService : Service() {
         startMs  = System.currentTimeMillis()
 
         startForeground(NOTIF_ID, buildNotif())
+        sendBroadcast(Intent("com.crescendo.alarm.ALARM_STARTED").setPackage(packageName))
         playNextSound()
 
         return START_STICKY
@@ -157,7 +158,7 @@ class WakeWindowService : Service() {
         val runnable = object : Runnable {
             override fun run() {
                 val elapsed  = System.currentTimeMillis() - startMs
-                val progress = (elapsed.toFloat() / totalMs).coerceIn(0f, 1f)
+                val progress = if (totalMs > 0) (elapsed.toFloat() / totalMs).coerceIn(0f, 1f) else 1f
                 val vol = (targetVol * progress * progress).coerceAtLeast(0.02f)
                 lastVolume = vol
                 mediaPlayer?.setVolume(vol, vol)
@@ -186,6 +187,7 @@ class WakeWindowService : Service() {
     }
 
     private fun stopEverything() {
+        if (mediaPlayer == null && vibrator == null) return
         handler.removeCallbacksAndMessages(null)
         mediaPlayer?.apply {
             try { if (isPlaying) stop() } catch (_: Exception) {}
@@ -193,6 +195,10 @@ class WakeWindowService : Service() {
         }
         mediaPlayer = null
         vibrator?.cancel()
+        vibrator = null
+
+        // Trigger briefing broadcast
+        sendBroadcast(Intent("com.crescendo.alarm.ALARM_DISMISSED").setPackage(packageName))
     }
 
     override fun onDestroy() {

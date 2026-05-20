@@ -20,6 +20,9 @@ class TTSService : Service(), TextToSpeech.OnInitListener {
 
     private var tts: TextToSpeech? = null
     private var message = "It's Bedtime. Time to sleep."
+    private var title   = "AuraWake"
+    private var pitch   = 1.0f
+    private var rate    = 0.9f
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -36,14 +39,24 @@ class TTSService : Service(), TextToSpeech.OnInitListener {
             return START_NOT_STICKY
         }
         message = intent?.getStringExtra("message") ?: message
+        title   = intent?.getStringExtra("title") ?: "AuraWake"
+        pitch   = intent?.getFloatExtra("pitch", 1.0f) ?: 1.0f
+        rate    = intent?.getFloatExtra("rate", 0.9f) ?: 0.9f
+        
+        // Update notification if already running
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.notify(NOTIF_ID, buildNotif())
+
         return START_NOT_STICKY
     }
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            tts?.language   = Locale.US
-            tts?.setSpeechRate(0.88f)
-            tts?.setPitch(0.95f)
+            // We don't force a language here anymore. 
+            // This allows the TTS engine to use your preferred voice (English India) 
+            // selected in the Android System Settings.
+            tts?.setSpeechRate(rate)
+            tts?.setPitch(pitch)
             tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(id: String?)  {}
                 override fun onDone(id: String?)   { stopSelf() }
@@ -66,7 +79,7 @@ class TTSService : Service(), TextToSpeech.OnInitListener {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_alarm)
-            .setContentTitle("🌙 Bedtime")
+            .setContentTitle(title)
             .setContentText(message)
             .addAction(R.drawable.ic_alarm, "Stop", stopPi)
             .setPriority(NotificationCompat.PRIORITY_LOW).build()
