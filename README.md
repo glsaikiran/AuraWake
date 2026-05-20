@@ -61,5 +61,13 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 ---
 **Developed by [sai](https://github.com/glsaikiran)**
 
+### 🚀 New in AuraWake v1.1.0 (AuraWake Update)
+
+*   **🎙️ Smart Morning Briefing:** Personal greeting, date, time, and tasks read aloud when you dismiss the alarm.
+*   **👤 Personalization:** Set your name for custom greetings.
+*   **✅ Task Integration:** Today's tasks are automatically included in your morning briefing.
+*   **🎚️ Voice Customization:** Live Pitch and Speed sliders with audio feedback.
+*   **🇮🇳 Accent Support:** Fully compatible with your system's English (India) TTS voice.
+
 1. Clone the repository:
    
