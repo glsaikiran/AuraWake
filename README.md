@@ -9,15 +9,19 @@ Wake up to a personalized voice briefing the moment you dismiss your alarm.
 *   **Personal Greeting:** The app greets you by name.
 *   **Date & Time:** Real-time information to keep you on schedule.
 *   **Weather Status:** Current weather briefing (Placeholder).
-*   **Task Summary:** Automatically reads your "Today's Tasks" list aloud.
+*   **Smart Task Summary:** Automatically reads your pending tasks. It intelligently skips completed items and congratulates you if your list is done.
 
 ### ⏰ Advanced Alarm System
+*   **User-Friendly Controls:** Modern Material 3 TimePickers for precise and easy time setting.
 *   **Crescendo Mode:** Alarms start whisper-quiet and gradually increase to full volume over a custom duration.
 *   **Wake Window:** A specialized pre-alarm sequence designed to pull you out of deep sleep gently before your main alarm sounds.
 *   **Sequential Sounds:** Support for multiple sequential sounds and custom audio files.
 
 ### ✅ Integrated Task Manager
-Stay on top of your day with a built-in to-do list. Your daily tasks are synced directly with the morning briefing voice.
+Stay on top of your day with a built-in to-do list. 
+*   **Editable Tasks:** Easily update task titles and times after creation.
+*   **Visual Tracking:** Tasks feature strikethrough styling when completed.
+*   **Briefing Sync:** Your daily pending tasks are synced directly with the morning briefing voice.
 
 ### 🌙 Intelligent Sleep Schedule
 *   **Wind Down:** Automatically silences distracting notifications before your set bedtime.
@@ -54,7 +58,15 @@ To function correctly, AuraWake requires:
 *   `POST_NOTIFICATIONS`: For bedtime reminders and active alarm alerts.
 *   `FOREGROUND_SERVICE`: To maintain the crescendo audio playback while the screen is off.
 
-## 🚀 New in v1.1.0 (AuraWake Update)
+## 🚀 Recent Updates
+
+### v1.2.0 (Latest)
+*   **Enhanced Time Edition:** Replaced difficult up/down arrows with user-friendly Material 3 TimePickers.
+*   **Editable Tasks:** Added full support for editing tasks after they are saved.
+*   **Visual Completion:** Added strikethrough effect for checked tasks.
+*   **Smart Briefing:** Updated the morning voice to only announce pending tasks.
+
+### v1.1.0
 *   Added Personalized Morning Briefing.
 *   Added Name Setup and Task Integration.
 *   Added Live Voice Feedback sliders.
