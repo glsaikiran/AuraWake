@@ -52,7 +52,9 @@ data class SleepSchedule(
     val wakeHaptics: Boolean = true,
     val wakeVolume: Int = 80,               // 10-100
     val ttsPitch: Float = 1.0f,
-    val ttsRate: Float = 0.9f
+    val ttsRate: Float = 0.9f,
+    val fontFamily: String = "Default",
+    val fontSizeMultiplier: Float = 1.0f
 ) {
     /** Total sleep in minutes */
     fun sleepMinutes(): Int {
@@ -164,7 +166,7 @@ interface TaskDao {
 
 // ── Database ───────────────────────────────────────────────────────────────
 
-@Database(entities = [Alarm::class, SleepSchedule::class, Task::class], version = 6, exportSchema = false)
+@Database(entities = [Alarm::class, SleepSchedule::class, Task::class], version = 8, exportSchema = false)
 abstract class AlarmDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
     abstract fun sleepScheduleDao(): SleepScheduleDao

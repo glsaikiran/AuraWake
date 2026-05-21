@@ -12,6 +12,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.text.font.FontFamily
 import com.crescendo.alarm.ui.theme.CrescendoAlarmTheme
 import com.crescendo.alarm.ui.navigation.AppNavigation
 import com.crescendo.alarm.viewmodel.AlarmViewModel
@@ -60,13 +63,33 @@ class MainActivity : ComponentActivity() {
         // ✅ Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissions(
-                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                arrayOf(
+                    android.Manifest.permission.POST_NOTIFICATIONS,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                ),
                 100
+            )
+        } else {
+            requestPermissions(
+                arrayOf(android.Manifest.permission.ACCESS_COARSE_LOCATION),
+                101
             )
         }
 
         setContent {
-            CrescendoAlarmTheme {
+            val sleepSchedule by viewModel.sleepSchedule.collectAsState()
+            val fontFamily = when(sleepSchedule.fontFamily) {
+                "Serif" -> FontFamily.Serif
+                "SansSerif" -> FontFamily.SansSerif
+                "Monospace" -> FontFamily.Monospace
+                "Cursive" -> FontFamily.Cursive
+                else -> FontFamily.Default
+            }
+
+            CrescendoAlarmTheme(
+                fontFamily = fontFamily,
+                fontSizeMultiplier = sleepSchedule.fontSizeMultiplier
+            ) {
                 AppNavigation(viewModel)
             }
         }

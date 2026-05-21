@@ -4,9 +4,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +26,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.crescendo.alarm.data.SleepSchedule
@@ -156,33 +160,33 @@ fun SleepScheduleScreen(viewModel: AlarmViewModel, onBack: () -> Unit) {
                                 horizontalArrangement = Arrangement.SpaceBetween) {
 
                                 // Bedtime tap
-                                Column(Modifier.clip(RoundedCornerShape(12.dp))
-                                    .clickable { showBedPicker = true }.padding(10.dp)) {
-                                    Text("🌙 Bedtime", color = Color(0x99FFFFFF), fontSize = 12.sp)
-                                    Spacer(Modifier.height(4.dp))
+                                Column(Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
+                                    .clickable { showBedPicker = true }.padding(vertical = 8.dp, horizontal = 2.dp)) {
+                                    Text("🌙 Bedtime", color = Color(0x99FFFFFF), fontSize = 10.sp, maxLines = 1)
+                                    Spacer(Modifier.height(2.dp))
                                     Text(s.formattedBedtime(), color = Color.White,
-                                        fontSize = 30.sp, fontWeight = FontWeight.Light)
-                                    Text("Tap to edit", color = Color(0x55FFFFFF), fontSize = 10.sp)
+                                        fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Clip)
+                                    Text("Tap to edit", color = Color(0x55FFFFFF), fontSize = 9.sp)
                                 }
 
                                 // Sleep duration badge
-                                Column(Modifier.align(Alignment.CenterVertically),
+                                Column(Modifier.weight(0.6f).align(Alignment.CenterVertically),
                                     horizontalAlignment = Alignment.CenterHorizontally) {
                                     val durColor = if (sleepShort) AccentRed else AccentGreen
                                     Text(s.sleepDurationLabel(), color = durColor,
-                                        fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                    Text("sleep", color = Color(0x60FFFFFF), fontSize = 10.sp)
+                                        fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    Text("sleep", color = Color(0x60FFFFFF), fontSize = 9.sp)
                                 }
 
                                 // Wake time tap
-                                Column(Modifier.clip(RoundedCornerShape(12.dp))
-                                    .clickable { showWakePicker = true }.padding(10.dp),
+                                Column(Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
+                                    .clickable { showWakePicker = true }.padding(vertical = 8.dp, horizontal = 2.dp),
                                     horizontalAlignment = Alignment.End) {
-                                    Text("☀️ Wake up", color = Color(0x99FFFFFF), fontSize = 12.sp)
-                                    Spacer(Modifier.height(4.dp))
+                                    Text("☀️ Wake up", color = Color(0x99FFFFFF), fontSize = 10.sp, maxLines = 1)
+                                    Spacer(Modifier.height(2.dp))
                                     Text(s.formattedWakeTime(), color = Color.White,
-                                        fontSize = 30.sp, fontWeight = FontWeight.Light)
-                                    Text("Tap to edit", color = Color(0x55FFFFFF), fontSize = 10.sp)
+                                        fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Clip)
+                                    Text("Tap to edit", color = Color(0x55FFFFFF), fontSize = 9.sp)
                                 }
                             }
 
@@ -240,9 +244,13 @@ fun SleepScheduleScreen(viewModel: AlarmViewModel, onBack: () -> Unit) {
                                 Spacer(Modifier.height(10.dp))
                                 Text("Apps silenced:", color = TextMuted, fontSize = 12.sp)
                                 Spacer(Modifier.height(6.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
                                     listOf("📱 WhatsApp","📸 Instagram","▶️ YouTube","📧 Gmail")
                                         .forEach { AppChip(it, AccentPurple) }
+                                    Spacer(Modifier.width(8.dp))
                                 }
                             }
                         }
@@ -469,7 +477,9 @@ fun SleepScheduleScreen(viewModel: AlarmViewModel, onBack: () -> Unit) {
 private fun SleepCard(icon: String, title: String, subtitle: String,
                       accent: Color, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-        .background(CardBg).padding(16.dp)) {
+        .background(CardBg)
+        .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(16.dp))
+        .padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(38.dp).clip(CircleShape).background(accent.copy(0.15f)),
@@ -489,16 +499,20 @@ private fun SleepCard(icon: String, title: String, subtitle: String,
 @Composable
 private fun ChipRow(options: List<Int>, selected: Int, label: (Int) -> String,
                     accent: Color, onSelect: (Int) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         options.forEach { opt ->
             val sel = opt == selected
-            Box(Modifier.clip(RoundedCornerShape(20.dp))
+            Box(Modifier.clip(RoundedCornerShape(12.dp))
                 .background(if (sel) accent else Color(0x1AFFFFFF))
                 .clickable { onSelect(opt) }
-                .padding(horizontal = 14.dp, vertical = 8.dp)) {
+                .padding(horizontal = 12.dp, vertical = 6.dp)) {
                 Text(label(opt),
                     color = if (sel) Color.White else TextMuted,
-                    fontSize = 13.sp,
+                    fontSize = 10.sp,
+                    maxLines = 1,
                     fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal)
             }
         }
@@ -507,18 +521,19 @@ private fun ChipRow(options: List<Int>, selected: Int, label: (Int) -> String,
 
 @Composable
 private fun AppChip(label: String, accent: Color) {
-    Box(Modifier.clip(RoundedCornerShape(20.dp)).background(accent.copy(0.12f))
-        .padding(horizontal = 10.dp, vertical = 6.dp)) {
-        Text(label, color = accent, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    Box(Modifier.clip(RoundedCornerShape(12.dp)).background(accent.copy(0.12f))
+        .padding(horizontal = 8.dp, vertical = 4.dp)) {
+        Text(label, color = accent, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
 private fun InfoRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = TextMuted, fontSize = 13.sp)
-        Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = TextMuted, fontSize = 13.sp, maxLines = 1, modifier = Modifier.weight(1f))
+        Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
     }
 }
 

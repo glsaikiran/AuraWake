@@ -18,7 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.crescendo.alarm.data.Alarm
@@ -89,7 +91,7 @@ fun HomeScreen(
             // Tab bar
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFF111122)).padding(4.dp)) {
-                listOf("⏰ Alarms", "🌙 Sleep", "✅ Tasks", "ℹ️ Info").forEachIndexed { idx, title ->
+                listOf("⏰ Alarms", "🌙 Sleep", "✅ Tasks", "⚙️ Settings").forEachIndexed { idx, title ->
                     val sel = tab == idx
                     Box(Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                         .background(if (sel) Color(0x2663B3ED) else Color.Transparent)
@@ -108,10 +110,12 @@ fun HomeScreen(
                 0 -> AlarmsTab(alarms, viewModel, onEditAlarm)
                 1 -> SleepSummaryTab(sleep, onOpenSleep)
                 2 -> TasksTab(viewModel)
-                3 -> AboutTab(
+                3 -> SettingsTab(
                     sleep,
                     onEditName = { viewModel.setUserName(it) },
                     onUpdateVoice = { p, r -> viewModel.setVoiceSettings(p, r) },
+                    onUpdateFont = { viewModel.setFontFamily(it) },
+                    onUpdateFontSize = { viewModel.setFontSize(it) },
                     onPreview = { viewModel.previewVoice() }
                 )
             }
@@ -311,12 +315,16 @@ private fun SummaryChip(icon: String, label: String, value: String, color: Color
 @Composable
 private fun TasksTab(viewModel: AlarmViewModel) {
     val tasks by viewModel.tasks.collectAsState()
-    var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var taskToEdit by remember { mutableStateOf<Task?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
             Text("Today's Tasks", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { showAddDialog = true }) {
+            IconButton(onClick = { 
+                taskToEdit = null
+                showEditDialog = true 
+            }) {
                 Icon(Icons.Default.Add, null, tint = AccentBlue)
             }
         }
@@ -329,28 +337,42 @@ private fun TasksTab(viewModel: AlarmViewModel) {
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(tasks) { task ->
-                    TaskItem(task, onToggle = { viewModel.toggleTask(task) }, onDelete = { viewModel.deleteTask(task) })
+                    TaskItem(
+                        task, 
+                        onToggle = { viewModel.toggleTask(task) }, 
+                        onDelete = { viewModel.deleteTask(task) },
+                        onClick = {
+                            taskToEdit = task
+                            showEditDialog = true
+                        }
+                    )
                 }
                 item { Spacer(Modifier.height(80.dp)) }
             }
         }
     }
 
-    if (showAddDialog) {
-        AddTaskDialog(onDismiss = { showAddDialog = false }) { title, time ->
-            viewModel.saveTask(Task(title = title, date = java.time.LocalDate.now().toString(), time = time))
-            showAddDialog = false
+    if (showEditDialog) {
+        TaskEditDialog(
+            task = taskToEdit,
+            onDismiss = { showEditDialog = false }
+        ) { title, time ->
+            val t = taskToEdit?.copy(title = title, time = time) 
+                ?: Task(title = title, date = java.time.LocalDate.now().toString(), time = time)
+            viewModel.saveTask(t)
+            showEditDialog = false
         }
     }
 }
 
 @Composable
-private fun TaskItem(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
+private fun TaskItem(task: Task, onToggle: () -> Unit, onDelete: () -> Unit, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(Color(0xFF111122))
+            .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -365,9 +387,15 @@ private fun TaskItem(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
                 task.title,
                 color = if (task.completed) TextMuted else Color.White,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                textDecoration = if (task.completed) TextDecoration.LineThrough else TextDecoration.None
             )
-            Text(task.time, color = TextMuted, fontSize = 12.sp)
+            val parts = task.time.split(":")
+            val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
+            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+            val displayH = if (h % 12 == 0) 12 else h % 12
+            val ampm = if (h < 12) "AM" else "PM"
+            Text("%d:%02d %s".format(displayH, m, ampm), color = TextMuted, fontSize = 12.sp)
         }
         IconButton(onClick = onDelete) {
             Icon(Icons.Default.Delete, null, tint = AccentRed.copy(0.7f), modifier = Modifier.size(20.dp))
@@ -377,15 +405,19 @@ private fun TaskItem(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddTaskDialog(onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
-    var title by remember { mutableStateOf("") }
-    var hour by remember { mutableIntStateOf(12) }
-    var minute by remember { mutableIntStateOf(0) }
+private fun TaskEditDialog(task: Task?, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+    var title by remember { mutableStateOf(task?.title ?: "") }
+    
+    val initialHour = task?.time?.split(":")?.get(0)?.toIntOrNull() ?: 12
+    val initialMinute = task?.time?.split(":")?.get(1)?.toIntOrNull() ?: 0
+    
+    val timeState = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute, is24Hour = false)
+    var showTimePicker by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF111122),
-        title = { Text("New Task", color = Color.White) },
+        title = { Text(if (task == null) "New Task" else "Edit Task", color = Color.White) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 TextField(
@@ -400,17 +432,34 @@ private fun AddTaskDialog(onDismiss: () -> Unit, onSave: (String, String) -> Uni
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Time:", color = TextMuted)
-                    // Simplified time selection
-                    NumberDrumSmall(hour, 0, 23) { hour = it }
-                    Text(":", color = Color.White)
-                    NumberDrumSmall(minute, 0, 59) { minute = it }
+                
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x0AFFFFFF))
+                        .clickable { showTimePicker = true }
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Time", color = TextMuted)
+                    val dispH = if (timeState.hour % 12 == 0) 12 else timeState.hour % 12
+                    val ampm = if (timeState.hour < 12) "AM" else "PM"
+                    Text(
+                        "%d:%02d %s".format(dispH, timeState.minute, ampm),
+                        color = AccentBlue,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (title.isNotBlank()) onSave(title, "%02d:%02d".format(hour, minute)) }) {
+            TextButton(onClick = { 
+                if (title.isNotBlank()) {
+                    onSave(title, "%02d:%02d".format(timeState.hour, timeState.minute)) 
+                }
+            }) {
                 Text("Save", color = AccentBlue)
             }
         },
@@ -418,18 +467,30 @@ private fun AddTaskDialog(onDismiss: () -> Unit, onSave: (String, String) -> Uni
             TextButton(onClick = onDismiss) { Text("Cancel", color = TextMuted) }
         }
     )
-}
 
-@Composable
-private fun NumberDrumSmall(value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            "%02d".format(value),
-            color = Color.White,
-            modifier = Modifier
-                .clickable { onChange(if (value >= max) min else value + 1) }
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-                .background(Color(0x1AFFFFFF), RoundedCornerShape(4.dp))
+    if (showTimePicker) {
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            containerColor = Color(0xFF111122),
+            title = { Text("Select Time", color = Color.White) },
+            text = {
+                TimePicker(state = timeState,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = Color(0xFF1A1A2E),
+                        clockDialSelectedContentColor = Color.White,
+                        clockDialUnselectedContentColor = TextMuted,
+                        selectorColor = AccentBlue,
+                        containerColor = Color(0xFF111122),
+                        timeSelectorSelectedContainerColor = AccentBlue,
+                        timeSelectorUnselectedContainerColor = Color(0x1AFFFFFF),
+                        timeSelectorSelectedContentColor = Color.White,
+                        timeSelectorUnselectedContentColor = TextMuted))
+            },
+            confirmButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text("OK", color = AccentBlue)
+                }
+            }
         )
     }
 }
@@ -495,13 +556,15 @@ private fun NameSetupDialog(onSave: (String) -> Unit) {
     )
 }
 
-// ── About Tab ──────────────────────────────────────────────────────────────
+// ── Settings Tab ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun AboutTab(
+private fun SettingsTab(
     sleep: SleepSchedule,
     onEditName: (String) -> Unit,
     onUpdateVoice: (Float, Float) -> Unit,
+    onUpdateFont: (String) -> Unit,
+    onUpdateFontSize: (Float) -> Unit,
     onPreview: () -> Unit
 ) {
     var showEditName by remember { mutableStateOf(false) }
@@ -517,8 +580,7 @@ private fun AboutTab(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("AuraWake", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("Crescendo Alarm", color = AccentBlue, fontSize = 14.sp)
+                Text("App Settings", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider(color = Color(0x15FFFFFF))
                 Spacer(Modifier.height(16.dp))
@@ -533,15 +595,10 @@ private fun AboutTab(
                         Text("✏️", fontSize = 14.sp)
                     }
                 }
-                
-                Spacer(Modifier.height(16.dp))
-                Text("Developed by", color = TextMuted, fontSize = 12.sp)
-                Text("glsaikiran", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(8.dp))
-                Text("Version 1.0.0", color = TextMuted, fontSize = 12.sp)
             }
         }
 
+        // Voice Settings
         item {
             Column(
                 modifier = Modifier
@@ -570,6 +627,7 @@ private fun AboutTab(
             }
         }
 
+        // Font Settings
         item {
             Column(
                 modifier = Modifier
@@ -578,28 +636,88 @@ private fun AboutTab(
                     .background(Color(0xFF111122))
                     .padding(20.dp)
             ) {
-                Text("Licensing & Terms", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("Appearance", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("Customize how the app looks", color = TextMuted, fontSize = 12.sp)
+                Spacer(Modifier.height(20.dp))
+
+                // Font Size Slider
+                Column {
+                    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                        Text("Font Size", color = Color.White, fontSize = 14.sp)
+                        Text("${(sleep.fontSizeMultiplier * 100).toInt()}%", color = AccentBlue, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Slider(
+                        value = sleep.fontSizeMultiplier,
+                        onValueChange = onUpdateFontSize,
+                        valueRange = 0.8f..1.4f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = AccentBlue,
+                            activeTrackColor = AccentBlue,
+                            inactiveTrackColor = Color(0xFF334455)
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = Color(0x0AFFFFFF))
+                Spacer(Modifier.height(16.dp))
+
+                Text("Font Style", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(12.dp))
-                Text(
-                    "This software is open for use and modification. However, proper credit must " +
-                    "be given to the original developer, glsaikiran, in all distributions or " +
-                    "substantial portions of the software.\n\n" +
-                    "Copyright (c) 2026 glsaikiran\n\n" +
-                    "Permission is hereby granted, free of charge, to any person obtaining a copy " +
-                    "of this software and associated documentation files to use, copy, modify, and " +
-                    "merge, subject to the condition that credit is clearly attributed to glsaikiran.",
-                    color = TextMuted,
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp
-                )
+
+                val fonts = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive")
+                fonts.forEach { font ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onUpdateFont(font) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(font, 
+                            color = if (sleep.fontFamily == font) AccentBlue else Color.White,
+                            fontSize = 16.sp,
+                            fontFamily = when(font) {
+                                "Serif" -> FontFamily.Serif
+                                "SansSerif" -> FontFamily.SansSerif
+                                "Monospace" -> FontFamily.Monospace
+                                "Cursive" -> FontFamily.Cursive
+                                else -> FontFamily.Default
+                            }
+                        )
+                        if (sleep.fontFamily == font) {
+                            Text("✓", color = AccentBlue, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    if (font != fonts.last()) HorizontalDivider(color = Color(0x0AFFFFFF))
+                }
             }
         }
 
         item {
-            Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                Text("Made with ❤️ for better mornings", color = TextMuted, fontSize = 11.sp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF111122))
+                    .padding(20.dp)
+            ) {
+                Text("About AuraWake", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(12.dp))
+                Text("Developed by glsaikiran", color = TextMuted, fontSize = 12.sp)
+                Text("Version 1.1.0", color = TextMuted, fontSize = 12.sp)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Copyright (c) 2026 glsaikiran. This software is open for use and modification with proper credit.",
+                    color = TextMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
             }
         }
+
+        item { Spacer(Modifier.height(32.dp)) }
     }
 
     if (showEditName) {

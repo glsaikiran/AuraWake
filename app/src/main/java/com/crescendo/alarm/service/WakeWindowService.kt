@@ -75,6 +75,16 @@ class WakeWindowService : Service() {
         startMs  = System.currentTimeMillis()
 
         startForeground(NOTIF_ID, buildNotif())
+        
+        // Launch the visual atmospheric screen
+        val alarmIntent = Intent(this, com.crescendo.alarm.AlarmActivity::class.java).apply {
+            putExtra("alarm_label", "Wake Up Window")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        try {
+            startActivity(alarmIntent)
+        } catch (e: Exception) {}
+
         sendBroadcast(Intent("com.crescendo.alarm.ALARM_STARTED").setPackage(packageName))
         playNextSound()
 
@@ -210,8 +220,12 @@ class WakeWindowService : Service() {
         val stopIntent = Intent(this, WakeWindowService::class.java).apply { action = ACTION_STOP }
         val stopPi = PendingIntent.getService(this, 0, stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val openPi = PendingIntent.getActivity(this, 0,
-            Intent(this, MainActivity::class.java),
+        
+        val alarmIntent = Intent(this, com.crescendo.alarm.AlarmActivity::class.java).apply {
+            putExtra("alarm_label", "Wake Up Window")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val openPi = PendingIntent.getActivity(this, 0, alarmIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -220,7 +234,9 @@ class WakeWindowService : Service() {
             .setContentText("Gradually waking you up over ${windowMin} minutes")
             .setContentIntent(openPi)
             .addAction(R.drawable.ic_alarm, "⏹ Stop", stopPi)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(openPi, true)
             .setOngoing(true)
             .build()
     }

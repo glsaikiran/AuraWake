@@ -40,11 +40,15 @@ class BriefingReceiver : BroadcastReceiver() {
                     val name = sleep?.userName?.ifBlank { "there" } ?: "there"
                     val timeStr = now.format(DateTimeFormatter.ofPattern("h:mm a"))
 
-                    val todayTasks = db.taskDao().getTasksForDate(dateStr).first()
-                    val tasksText = if (todayTasks.isEmpty()) {
+                    val allTasks = db.taskDao().getTasksForDate(dateStr).first()
+                    val pendingTasks = allTasks.filter { !it.completed }
+                    
+                    val tasksText = if (allTasks.isEmpty()) {
                         "You have no tasks scheduled for today."
+                    } else if (pendingTasks.isEmpty()) {
+                        "All your tasks for today are completed. Well done!"
                     } else {
-                        "Your tasks for today are: " + todayTasks.joinToString(", ") { it.title }
+                        "Your pending tasks for today are: " + pendingTasks.joinToString(", ") { it.title }
                     }
 
                     val briefing = "Good morning, $name. Today is ${dayOfMonth}${suffix} and ${dayOfWeek}. " +

@@ -71,6 +71,7 @@ fun EditAlarmScreen(alarmId: Int, viewModel: AlarmViewModel, onBack: () -> Unit)
     var soundsJson by remember { mutableStateOf(existing?.soundsJson ?: "[]") }
     var vibration  by remember { mutableStateOf(existing?.vibration ?: false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showTimePicker   by remember { mutableStateOf(false) }
     var editingSoundIndex by remember { mutableStateOf(-1) }
 
     val sounds = remember(soundsJson) {
@@ -140,23 +141,28 @@ fun EditAlarmScreen(alarmId: Int, viewModel: AlarmViewModel, onBack: () -> Unit)
             ) {
                 item {
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                        .background(CardBg).padding(24.dp),
+                        .background(CardBg)
+                        .clickable { showTimePicker = true }
+                        .padding(24.dp),
                         contentAlignment = Alignment.Center) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center) {
-                            NumberDrum(hour, 0, 23, { "%02d".format(it) }) { hour = it }
-                            Text(":", color = Color(0x55FFFFFF), fontSize = 42.sp,
+                            val displayHour = when {
+                                hour == 0 -> 12
+                                hour > 12 -> hour - 12
+                                else -> hour
+                            }
+                            Text("%02d".format(displayHour), color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Bold)
+                            Text(":", color = Color(0x55FFFFFF), fontSize = 64.sp,
                                 fontWeight = FontWeight.Light, modifier = Modifier.padding(horizontal = 8.dp))
-                            NumberDrum(minute, 0, 59, { "%02d".format(it) }) { minute = it }
+                            Text("%02d".format(minute), color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.width(16.dp))
                             Column {
-                                Text("AM", fontSize = 18.sp, fontWeight = FontWeight.Medium,
-                                    color = if (hour < 12) AccentBlue else Color(0x44FFFFFF),
-                                    modifier = Modifier.clickable { if (hour >= 12) hour -= 12 })
+                                Text("AM", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                                    color = if (hour < 12) AccentBlue else Color(0x44FFFFFF))
                                 Spacer(Modifier.height(4.dp))
-                                Text("PM", fontSize = 18.sp, fontWeight = FontWeight.Medium,
-                                    color = if (hour >= 12) AccentBlue else Color(0x44FFFFFF),
-                                    modifier = Modifier.clickable { if (hour < 12) hour += 12 })
+                                Text("PM", fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                                    color = if (hour >= 12) AccentBlue else Color(0x44FFFFFF))
                             }
                         }
                     }
@@ -353,6 +359,39 @@ fun EditAlarmScreen(alarmId: Int, viewModel: AlarmViewModel, onBack: () -> Unit)
         }
     }
 
+    if (showTimePicker) {
+        val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = false)
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            containerColor = Color(0xFF111122),
+            title = { Text("Set Time", color = Color.White, fontWeight = FontWeight.SemiBold) },
+            text = {
+                TimePicker(state = state,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = Color(0xFF1A1A2E),
+                        clockDialSelectedContentColor = Color.White,
+                        clockDialUnselectedContentColor = TextMuted,
+                        selectorColor = AccentBlue,
+                        containerColor = Color(0xFF111122),
+                        timeSelectorSelectedContainerColor = AccentBlue,
+                        timeSelectorUnselectedContainerColor = Color(0x1AFFFFFF),
+                        timeSelectorSelectedContentColor = Color.White,
+                        timeSelectorUnselectedContentColor = TextMuted))
+            },
+            confirmButton = {
+                TextButton(onClick = { 
+                    hour = state.hour
+                    minute = state.minute
+                    showTimePicker = false 
+                }) {
+                    Text("Set", color = AccentBlue, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancel", color = TextMuted) }
+            }
+        )
+    }
+
     if (showDeleteDialog) {
         AlertDialog(onDismissRequest = { showDeleteDialog = false },
             containerColor = Color(0xFF111122),
@@ -404,22 +443,6 @@ fun EditAlarmScreen(alarmId: Int, viewModel: AlarmViewModel, onBack: () -> Unit)
                 TextButton(onClick = { editingSoundIndex = -1 }) { Text("Cancel", color = TextMuted) }
             }
         )
-    }
-}
-
-@Composable
-private fun NumberDrum(value: Int, min: Int, max: Int,
-                       display: (Int) -> String, onChange: (Int) -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        TextButton(onClick = { onChange(if (value >= max) min else value + 1) }) {
-            Text("▲", color = TextMuted, fontSize = 16.sp)
-        }
-        Text(display(value), color = Color.White, fontSize = 44.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
-        TextButton(onClick = { onChange(if (value <= min) max else value - 1) }) {
-            Text("▼", color = TextMuted, fontSize = 16.sp)
-        }
     }
 }
 

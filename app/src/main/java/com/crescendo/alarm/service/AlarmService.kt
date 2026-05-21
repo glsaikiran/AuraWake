@@ -9,7 +9,6 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.*
 import androidx.core.app.NotificationCompat
-import com.crescendo.alarm.MainActivity
 import com.crescendo.alarm.R
 import org.json.JSONArray
 
@@ -50,7 +49,20 @@ class AlarmService : Service() {
 
         parseSounds(soundsJson, soundName)
 
-        startForeground(NOTIF_ID, buildNotif(label))
+        val notification = buildNotif(label)
+        startForeground(NOTIF_ID, notification)
+        
+        // Explicitly try to launch the activity so it appears immediately if the phone is in use
+        val alarmIntent = Intent(this, com.crescendo.alarm.AlarmActivity::class.java).apply {
+            putExtra("alarm_label", label)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        try {
+            startActivity(alarmIntent)
+        } catch (e: Exception) {
+            // Fallback: the fullScreenIntent in the notification will handle it if the screen is locked
+        }
+
         sendBroadcast(Intent("com.crescendo.alarm.ALARM_STARTED").setPackage(packageName))
         playAlarmSequence(crescendo, rampMin, vibOn)
         return START_STICKY
@@ -172,13 +184,19 @@ class AlarmService : Service() {
         val stopPi = PendingIntent.getService(this, 0,
             Intent(this, AlarmService::class.java).apply { action = ACTION_STOP },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val openPi = PendingIntent.getActivity(this, 0,
-            Intent(this, MainActivity::class.java),
+        
+        val alarmIntent = Intent(this, com.crescendo.alarm.AlarmActivity::class.java).apply {
+            putExtra("alarm_label", label)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        
+        val openPi = PendingIntent.getActivity(this, 0, alarmIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_alarm)
             .setContentTitle(label)
-            .setContentText("Crescendo alarm ringing — tap Stop to dismiss")
+            .setContentText("Crescendo alarm ringing — swipe to stop")
             .setContentIntent(openPi)
             .addAction(R.drawable.ic_alarm, "⏹ Stop", stopPi)
             .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -188,10 +206,16 @@ class AlarmService : Service() {
     }
 
     private fun createChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            getSystemService(NotificationManager::class.java)
-                .createNotificationChannel(NotificationChannel(
-                    CHANNEL_ID, "Crescendo Alarms", NotificationManager.IMPORTANCE_HIGH
-                ).apply { setSound(null, null) })
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID, "Crescendo Alarms", NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Urgent alarm notifications"
+                setSound(null, null) // We play our own sound via MediaPlayer
+                enableVibration(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
     }
 }
