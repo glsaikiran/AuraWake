@@ -316,7 +316,10 @@ fun SleepScheduleScreen(viewModel: AlarmViewModel, onBack: () -> Unit) {
 
                                 // Timeline
                                 WakeWindowTimeline(s)
+                            }
+                        }
 
+                        Column {
                                 Spacer(Modifier.height(16.dp))
 
                                 // Volume slider
@@ -403,7 +406,6 @@ fun SleepScheduleScreen(viewModel: AlarmViewModel, onBack: () -> Unit) {
                                     Spacer(Modifier.height(8.dp))
                                     Text("Using default: ${s.wakeSound}", color = AccentGreen.copy(0.7f), fontSize = 12.sp)
                                 }
-                            }
                         }
                     }
                 }

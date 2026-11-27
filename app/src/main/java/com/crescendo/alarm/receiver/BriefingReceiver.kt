@@ -18,6 +18,9 @@ import java.util.*
 class BriefingReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == "com.crescendo.alarm.ALARM_DISMISSED") {
+            val isSleepCycle = intent.getBooleanExtra("is_sleep_cycle", false)
+            if (!isSleepCycle) return
+            
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {

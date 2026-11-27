@@ -11,6 +11,9 @@ import androidx.core.content.ContextCompat
 import com.crescendo.alarm.R
 import com.crescendo.alarm.service.TTSService
 import com.crescendo.alarm.service.WakeWindowService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class SleepReceiver : BroadcastReceiver() {
 
@@ -27,12 +30,30 @@ class SleepReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         createChannel(context)
-        when (intent.action) {
+        val action = intent.action
+        when (action) {
             ACTION_WIND_DOWN       -> handleWindDown(context, intent)
             ACTION_STOP_WIND_DOWN  -> handleStopWindDown(context)
             ACTION_BEDTIME_REMINDER -> handleBedtime(context, intent)
             ACTION_STOP_BEDTIME     -> handleStopBedtime(context)
             ACTION_WAKE_WINDOW     -> handleWakeWindow(context, intent)
+        }
+
+        if (action == ACTION_WIND_DOWN || action == ACTION_BEDTIME_REMINDER || action == ACTION_WAKE_WINDOW) {
+            val pendingResult = goAsync()
+            CoroutineScope(Dispatchers.IO).launch {
+                val dao = com.crescendo.alarm.data.AlarmDatabase.getInstance(context).sleepScheduleDao()
+                val schedule = dao.getScheduleNow()
+                if (schedule != null && schedule.enabled) {
+                    val scheduler = com.crescendo.alarm.scheduler.SleepScheduler(context)
+                    when (action) {
+                        ACTION_WIND_DOWN -> scheduler.scheduleWindDown(schedule, true)
+                        ACTION_BEDTIME_REMINDER -> scheduler.scheduleBedtimeReminder(schedule, true)
+                        ACTION_WAKE_WINDOW -> scheduler.scheduleWakeWindow(schedule, true)
+                    }
+                }
+                pendingResult.finish()
+            }
         }
     }
 

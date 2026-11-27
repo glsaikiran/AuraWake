@@ -66,13 +66,32 @@ class WakeWindowService : Service() {
         windowMin   = intent?.getIntExtra("wake_window_minutes", 30) ?: 30
         targetVol   = ((intent?.getIntExtra("wake_volume", 80) ?: 80) / 100f).coerceIn(0.1f, 1f)
         hapticsOn   = intent?.getBooleanExtra("wake_haptics", true)  ?: true
+        val wakeHour = intent?.getIntExtra("wake_hour", -1) ?: -1
+        val wakeMinute = intent?.getIntExtra("wake_minute", -1) ?: -1
         val sound   = intent?.getStringExtra("wake_sound") ?: "Helix"
         val soundsJson = intent?.getStringExtra("wake_sounds_json") ?: "[]"
 
         parseSounds(soundsJson, sound)
 
         totalMs  = windowMin * 60 * 1000L
-        startMs  = System.currentTimeMillis()
+        if (wakeHour != -1 && wakeMinute != -1) {
+            val targetCal = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, wakeHour)
+                set(java.util.Calendar.MINUTE, wakeMinute)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            // If target time is more than 12 hours ago, it's probably for tomorrow
+            val diff = targetCal.timeInMillis - System.currentTimeMillis()
+            if (diff < -12 * 3600 * 1000L) {
+                targetCal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+            } else if (diff > 12 * 3600 * 1000L) {
+                targetCal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+            }
+            startMs = targetCal.timeInMillis - totalMs
+        } else {
+            startMs  = System.currentTimeMillis()
+        }
 
         startForeground(NOTIF_ID, buildNotif())
         
@@ -208,7 +227,11 @@ class WakeWindowService : Service() {
         vibrator = null
 
         // Trigger briefing broadcast
-        sendBroadcast(Intent("com.crescendo.alarm.ALARM_DISMISSED").setPackage(packageName))
+        val broadcastIntent = Intent("com.crescendo.alarm.ALARM_DISMISSED").apply {
+            setPackage(packageName)
+            putExtra("is_sleep_cycle", true)
+        }
+        sendBroadcast(broadcastIntent)
     }
 
     override fun onDestroy() {

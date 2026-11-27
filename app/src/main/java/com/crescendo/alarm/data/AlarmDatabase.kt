@@ -145,6 +145,9 @@ interface SleepScheduleDao {
     @Query("SELECT * FROM sleep_schedule WHERE id = 1")
     fun getSchedule(): Flow<SleepSchedule?>
 
+    @Query("SELECT * FROM sleep_schedule WHERE id = 1")
+    suspend fun getScheduleNow(): SleepSchedule?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveSchedule(schedule: SleepSchedule)
 }
